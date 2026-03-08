@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 const LOOKUP_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/jarvis-lookup`;
 
 export async function fetchWeather(city: string) {
@@ -26,8 +28,68 @@ export async function fetchNews(topic: string) {
   return resp.json();
 }
 
-export function detectCommand(text: string): { type: "weather" | "news"; query: string } | null {
+export type CommandResult =
+  | { type: "weather"; query: string }
+  | { type: "news"; query: string }
+  | { type: "task_add"; title: string; time: string | null; priority: string }
+  | { type: "task_complete"; query: string }
+  | { type: "task_list" };
+
+function parseTime(text: string): string | null {
+  // Match "at 3pm", "at 15:00", "at 3:30 pm"
+  const m = text.match(/at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+  if (!m) return null;
+  let hours = parseInt(m[1]);
+  const minutes = m[2] ? parseInt(m[2]) : 0;
+  const ampm = m[3]?.toLowerCase();
+  if (ampm === "pm" && hours < 12) hours += 12;
+  if (ampm === "am" && hours === 12) hours = 0;
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+}
+
+function parsePriority(text: string): string {
   const lower = text.toLowerCase();
+  if (lower.includes("high priority") || lower.includes("urgent") || lower.includes("important")) return "high";
+  if (lower.includes("low priority")) return "low";
+  return "medium";
+}
+
+export function detectCommand(text: string): CommandResult | null {
+  const lower = text.toLowerCase();
+
+  // Task list detection
+  if (/(?:list|show|view|what are|what'?s)\s+(?:my\s+)?tasks/i.test(lower) ||
+      /(?:my\s+)?(?:tasks|to-?do|todo)/i.test(lower) && (lower.includes("show") || lower.includes("list") || lower.includes("what"))) {
+    return { type: "task_list" };
+  }
+
+  // Task complete detection
+  const completePatterns = [
+    /(?:complete|finish|done|mark.*(?:done|complete))\s+(?:the\s+)?(?:task\s+)?["""]?(.+?)["""]?\s*$/i,
+    /(?:check off|tick)\s+["""]?(.+?)["""]?\s*$/i,
+  ];
+  for (const p of completePatterns) {
+    const m = text.match(p);
+    if (m) return { type: "task_complete", query: m[1].trim() };
+  }
+
+  // Task add detection
+  const addPatterns = [
+    /(?:add|create|new|make)\s+(?:a\s+)?task\s+(?:to\s+)?["""]?(.+?)["""]?\s*$/i,
+    /(?:remind me to|i need to)\s+(.+)/i,
+    /(?:add|put)\s+["""]?(.+?)["""]?\s+(?:to|on|in)\s+(?:my\s+)?(?:tasks|to-?do|planner)/i,
+  ];
+  for (const p of addPatterns) {
+    const m = text.match(p);
+    if (m) {
+      let title = m[1].replace(/\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?/i, "").trim();
+      // Remove trailing priority words
+      title = title.replace(/\s+(?:high|low)\s+priority$/i, "").replace(/\s+urgent$/i, "").trim();
+      const time = parseTime(text);
+      const priority = parsePriority(text);
+      return { type: "task_add", title, time, priority };
+    }
+  }
 
   // Weather detection
   const weatherPatterns = [
@@ -54,4 +116,70 @@ export function detectCommand(text: string): { type: "weather" | "news"; query: 
   if (lower.includes("news") || lower.includes("headlines")) return { type: "news", query: "technology" };
 
   return null;
+}
+
+// Task execution functions
+export async function executeAddTask(userId: string, title: string, time: string | null, priority: string): Promise<string> {
+  const today = new Date().toISOString().split("T")[0];
+  const { error } = await supabase.from("tasks").insert({
+    user_id: userId,
+    title,
+    due_date: today,
+    due_time: time,
+    priority,
+  });
+  if (error) throw new Error(error.message);
+  const timeStr = time ? ` at **${time}**` : "";
+  const prioStr = priority !== "medium" ? ` (${priority} priority)` : "";
+  return `✅ Task added: **${title}**${timeStr}${prioStr}\n\nI've added it to your Daily Planner for today.`;
+}
+
+export async function executeCompleteTask(query: string): Promise<string> {
+  // Find matching incomplete task by fuzzy title match
+  const { data: tasks } = await supabase
+    .from("tasks")
+    .select("id, title")
+    .eq("completed", false)
+    .ilike("title", `%${query}%`);
+
+  if (!tasks || tasks.length === 0) {
+    return `I couldn't find an incomplete task matching "**${query}**". Try saying "show my tasks" to see what's available.`;
+  }
+
+  const task = tasks[0];
+  const { error } = await supabase.from("tasks").update({ completed: true }).eq("id", task.id);
+  if (error) throw new Error(error.message);
+  return `✅ Marked "**${task.title}**" as complete. Well done!`;
+}
+
+export async function executeListTasks(): Promise<string> {
+  const { data: tasks } = await supabase
+    .from("tasks")
+    .select("*")
+    .order("completed", { ascending: true })
+    .order("due_date", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: false });
+
+  if (!tasks || tasks.length === 0) {
+    return "📋 You have no tasks. Say something like **\"Add a task to review code at 3pm\"** to get started.";
+  }
+
+  const pending = tasks.filter(t => !t.completed);
+  const done = tasks.filter(t => t.completed);
+
+  let md = `## 📋 Your Tasks\n\n`;
+  if (pending.length > 0) {
+    md += `**Pending (${pending.length})**\n`;
+    pending.forEach((t, i) => {
+      const time = t.due_time ? ` ⏰ ${t.due_time}` : "";
+      const date = t.due_date ? ` 📅 ${t.due_date}` : "";
+      const prio = t.priority === "high" ? " 🔴" : t.priority === "low" ? " 🟢" : "";
+      md += `${i + 1}. ${t.title}${time}${date}${prio}\n`;
+    });
+  }
+  if (done.length > 0) {
+    md += `\n**Completed (${done.length})**\n`;
+    done.forEach((t, i) => { md += `${i + 1}. ~~${t.title}~~\n`; });
+  }
+  return md;
 }
