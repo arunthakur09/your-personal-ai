@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 
 const Index = () => {
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
