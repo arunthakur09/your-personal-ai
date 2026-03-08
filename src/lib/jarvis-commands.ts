@@ -123,6 +123,7 @@ export async function executeAddTask(userId: string, title: string, time: string
     priority,
     completed: false,
   });
+  window.dispatchEvent(new Event("tasks-updated"));
   const timeStr = time ? ` at **${time}**` : "";
   const prioStr = priority !== "medium" ? ` (${priority} priority)` : "";
   return `✅ Task added: **${title}**${timeStr}${prioStr}\n\nI've added it to your Daily Planner for today.`;
