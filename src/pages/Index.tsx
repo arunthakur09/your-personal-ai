@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, PanelLeftOpen, PanelLeftClose, CalendarDays, LogOut } from "lucide-react";
+import { Send, PanelLeftOpen, PanelLeftClose, CalendarDays, LogOut, HelpCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { JarvisHeader } from "@/components/JarvisHeader";
 import { JarvisOrb } from "@/components/JarvisOrb";
 import { ChatMessage } from "@/components/ChatMessage";
@@ -20,6 +21,7 @@ import {
 import { toast } from "sonner";
 
 const Index = () => {
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
@@ -181,6 +183,9 @@ const Index = () => {
           <div className="flex-1"><JarvisHeader /></div>
           <button onClick={() => setPlannerOpen(!plannerOpen)} className={`p-3 transition-colors ${plannerOpen ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
             <CalendarDays className="h-5 w-5" />
+          </button>
+          <button onClick={() => navigate("/help")} className="p-3 text-muted-foreground hover:text-foreground transition-colors" title="Help">
+            <HelpCircle className="h-5 w-5" />
           </button>
           <button onClick={signOut} className="p-3 text-muted-foreground hover:text-destructive transition-colors" title="Sign out">
             <LogOut className="h-5 w-5" />

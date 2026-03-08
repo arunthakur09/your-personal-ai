@@ -1,20 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Check, Trash2, Calendar, Clock, Flag, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
-
-interface Task {
-  id: string;
-  title: string;
-  description: string | null;
-  due_date: string | null;
-  due_time: string | null;
-  priority: string;
-  completed: boolean;
-  created_at: string;
-}
+import { type Task, getTasksSorted, addTask, updateTask, deleteTaskById } from "@/lib/task-storage";
 
 interface DailyPlannerProps {
   isOpen: boolean;
@@ -31,44 +20,48 @@ export function DailyPlanner({ isOpen, onClose }: DailyPlannerProps) {
   const [dueTime, setDueTime] = useState("");
   const [priority, setPriority] = useState("medium");
 
+  const loadTasks = useCallback(() => {
+    setTasks(getTasksSorted());
+  }, []);
+
   useEffect(() => {
     if (user) loadTasks();
-  }, [user]);
+  }, [user, loadTasks]);
 
-  const loadTasks = async () => {
-    const { data, error } = await supabase
-      .from("tasks")
-      .select("*")
-      .order("completed", { ascending: true })
-      .order("due_date", { ascending: true, nullsFirst: false })
-      .order("created_at", { ascending: false });
-    if (error) { console.error(error); return; }
-    setTasks(data as Task[]);
-  };
+  // Listen for storage events from other tabs and task command updates
+  useEffect(() => {
+    const onStorage = () => loadTasks();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("tasks-updated", onStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("tasks-updated", onStorage);
+    };
+  }, [loadTasks]);
 
-  const addTask = async (e: React.FormEvent) => {
+  const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !user) return;
-    const { error } = await supabase.from("tasks").insert({
+    addTask({
       user_id: user.id,
       title: title.trim(),
       description: description.trim() || null,
       due_date: dueDate || null,
       due_time: dueTime || null,
       priority,
+      completed: false,
     });
-    if (error) { toast.error(error.message); return; }
     setTitle(""); setDescription(""); setDueDate(""); setDueTime(""); setPriority("medium"); setShowForm(false);
     loadTasks();
   };
 
-  const toggleTask = async (id: string, completed: boolean) => {
-    await supabase.from("tasks").update({ completed: !completed }).eq("id", id);
+  const toggleTask = (id: string, completed: boolean) => {
+    updateTask(id, { completed: !completed });
     loadTasks();
   };
 
-  const deleteTask = async (id: string) => {
-    await supabase.from("tasks").delete().eq("id", id);
+  const handleDeleteTask = (id: string) => {
+    deleteTaskById(id);
     loadTasks();
   };
 
@@ -78,11 +71,9 @@ export function DailyPlanner({ isOpen, onClose }: DailyPlannerProps) {
     return "text-accent";
   };
 
-  const todayTasks = tasks.filter(t => {
-    if (!t.due_date) return false;
-    return t.due_date === new Date().toISOString().split("T")[0];
-  });
-  const otherTasks = tasks.filter(t => !t.due_date || t.due_date !== new Date().toISOString().split("T")[0]);
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayTasks = tasks.filter(t => t.due_date === todayStr);
+  const otherTasks = tasks.filter(t => t.due_date !== todayStr);
 
   if (!isOpen) return null;
 
@@ -101,17 +92,15 @@ export function DailyPlanner({ isOpen, onClose }: DailyPlannerProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
-        {/* Today section */}
         {todayTasks.length > 0 && (
           <div>
             <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest mb-2">Today</p>
             {todayTasks.map(task => (
-              <TaskItem key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} priorityColor={priorityColor} />
+              <TaskItem key={task.id} task={task} onToggle={toggleTask} onDelete={handleDeleteTask} priorityColor={priorityColor} />
             ))}
           </div>
         )}
 
-        {/* All tasks */}
         <div>
           <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest mb-2">
             {todayTasks.length > 0 ? "Other Tasks" : "All Tasks"}
@@ -120,12 +109,11 @@ export function DailyPlanner({ isOpen, onClose }: DailyPlannerProps) {
             <p className="text-sm text-muted-foreground font-body py-4 text-center">No tasks yet. Add one below.</p>
           )}
           {otherTasks.map(task => (
-            <TaskItem key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} priorityColor={priorityColor} />
+            <TaskItem key={task.id} task={task} onToggle={toggleTask} onDelete={handleDeleteTask} priorityColor={priorityColor} />
           ))}
         </div>
       </div>
 
-      {/* Add task */}
       <div className="p-3 border-t border-border/50">
         <AnimatePresence>
           {showForm ? (
@@ -133,23 +121,13 @@ export function DailyPlanner({ isOpen, onClose }: DailyPlannerProps) {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              onSubmit={addTask}
+              onSubmit={handleAddTask}
               className="space-y-2"
             >
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Task title"
-                required
-                className="w-full rounded-lg bg-input jarvis-border px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Description (optional)"
-                rows={2}
-                className="w-full rounded-lg bg-input jarvis-border px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-              />
+              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" required
+                className="w-full rounded-lg bg-input jarvis-border px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" rows={2}
+                className="w-full rounded-lg bg-input jarvis-border px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none" />
               <div className="flex gap-2">
                 <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
                   className="flex-1 rounded-lg bg-input jarvis-border px-2 py-1.5 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
