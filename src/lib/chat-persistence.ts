@@ -2,9 +2,12 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ChatMessage } from "@/lib/jarvis-stream";
 
 export async function createConversation(title?: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  
   const { data, error } = await supabase
     .from("conversations")
-    .insert({ title: title || "New Conversation" })
+    .insert({ title: title || "New Conversation", user_id: user.id })
     .select("id")
     .single();
   if (error) throw error;
@@ -37,7 +40,6 @@ export async function saveMessage(conversationId: string, role: string, content:
     .insert({ conversation_id: conversationId, role, content });
   if (error) throw error;
 
-  // Update conversation title from first user message
   if (role === "user") {
     const { data: msgs } = await supabase
       .from("chat_messages")
@@ -50,7 +52,6 @@ export async function saveMessage(conversationId: string, role: string, content:
         .update({ title: content.slice(0, 60) })
         .eq("id", conversationId);
     } else {
-      // Just touch updated_at
       await supabase
         .from("conversations")
         .update({ updated_at: new Date().toISOString() })
