@@ -1,66 +1,73 @@
-import { supabase } from "@/integrations/supabase/client";
 import type { ChatMessage } from "@/lib/jarvis-stream";
 
-export async function createConversation(title?: string) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-  
-  const { data, error } = await supabase
-    .from("conversations")
-    .insert({ title: title || "New Conversation", user_id: user.id })
-    .select("id")
-    .single();
-  if (error) throw error;
-  return data.id as string;
+const CONVERSATIONS_KEY = "jarvis_conversations";
+const MESSAGES_KEY = "jarvis_messages";
+
+interface StoredConversation {
+  id: string;
+  title: string;
+  updated_at: string;
 }
 
-export async function loadConversations() {
-  const { data, error } = await supabase
-    .from("conversations")
-    .select("id, title, updated_at")
-    .order("updated_at", { ascending: false })
-    .limit(20);
-  if (error) throw error;
-  return data as { id: string; title: string; updated_at: string }[];
+function getConversations(): StoredConversation[] {
+  try {
+    return JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || "[]");
+  } catch { return []; }
+}
+
+function setConversations(convs: StoredConversation[]) {
+  localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(convs));
+}
+
+function getMessages(conversationId: string): ChatMessage[] {
+  try {
+    const all = JSON.parse(localStorage.getItem(MESSAGES_KEY) || "{}");
+    return all[conversationId] || [];
+  } catch { return []; }
+}
+
+function setMessagesForConv(conversationId: string, msgs: ChatMessage[]) {
+  const all = JSON.parse(localStorage.getItem(MESSAGES_KEY) || "{}");
+  all[conversationId] = msgs;
+  localStorage.setItem(MESSAGES_KEY, JSON.stringify(all));
+}
+
+export async function createConversation(title?: string): Promise<string> {
+  const id = crypto.randomUUID();
+  const convs = getConversations();
+  convs.unshift({ id, title: title || "New Conversation", updated_at: new Date().toISOString() });
+  setConversations(convs);
+  return id;
+}
+
+export async function loadConversations(): Promise<StoredConversation[]> {
+  return getConversations().sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, 20);
 }
 
 export async function loadMessages(conversationId: string): Promise<ChatMessage[]> {
-  const { data, error } = await supabase
-    .from("chat_messages")
-    .select("role, content")
-    .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return (data || []) as ChatMessage[];
+  return getMessages(conversationId);
 }
 
 export async function saveMessage(conversationId: string, role: string, content: string) {
-  const { error } = await supabase
-    .from("chat_messages")
-    .insert({ conversation_id: conversationId, role, content });
-  if (error) throw error;
+  const msgs = getMessages(conversationId);
+  msgs.push({ role: role as "user" | "assistant", content });
+  setMessagesForConv(conversationId, msgs);
 
-  if (role === "user") {
-    const { data: msgs } = await supabase
-      .from("chat_messages")
-      .select("id")
-      .eq("conversation_id", conversationId)
-      .limit(2);
-    if (msgs && msgs.length === 1) {
-      await supabase
-        .from("conversations")
-        .update({ title: content.slice(0, 60) })
-        .eq("id", conversationId);
-    } else {
-      await supabase
-        .from("conversations")
-        .update({ updated_at: new Date().toISOString() })
-        .eq("id", conversationId);
+  const convs = getConversations();
+  const conv = convs.find(c => c.id === conversationId);
+  if (conv) {
+    conv.updated_at = new Date().toISOString();
+    // Update title from first user message
+    if (role === "user" && msgs.filter(m => m.role === "user").length === 1) {
+      conv.title = content.slice(0, 60);
     }
+    setConversations(convs);
   }
 }
 
 export async function deleteConversation(id: string) {
-  const { error } = await supabase.from("conversations").delete().eq("id", id);
-  if (error) throw error;
+  setConversations(getConversations().filter(c => c.id !== id));
+  const all = JSON.parse(localStorage.getItem(MESSAGES_KEY) || "{}");
+  delete all[id];
+  localStorage.setItem(MESSAGES_KEY, JSON.stringify(all));
 }
