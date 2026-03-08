@@ -9,7 +9,7 @@ import { DailyPlanner } from "@/components/DailyPlanner";
 import { useVoice, speak } from "@/hooks/use-voice";
 import { useAuth } from "@/hooks/use-auth";
 import { streamChat, type ChatMessage as ChatMsg } from "@/lib/jarvis-stream";
-import { detectCommand, fetchWeather, fetchNews } from "@/lib/jarvis-commands";
+import { detectCommand, fetchWeather, fetchNews, executeAddTask, executeCompleteTask, executeListTasks } from "@/lib/jarvis-commands";
 import {
   createConversation,
   loadConversations,
