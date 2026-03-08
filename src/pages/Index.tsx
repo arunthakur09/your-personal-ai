@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, PanelLeftOpen, PanelLeftClose, CalendarDays, LogOut } from "lucide-react";
+import { Send, PanelLeftOpen, PanelLeftClose, CalendarDays, LogOut, HelpCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { JarvisHeader } from "@/components/JarvisHeader";
 import { JarvisOrb } from "@/components/JarvisOrb";
 import { ChatMessage } from "@/components/ChatMessage";
