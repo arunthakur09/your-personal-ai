@@ -138,6 +138,7 @@ export async function executeCompleteTask(query: string): Promise<string> {
 
   const task = tasks[0];
   updateTask(task.id, { completed: true });
+  window.dispatchEvent(new Event("tasks-updated"));
   return `✅ Marked "**${task.title}**" as complete. Well done!`;
 }
 
