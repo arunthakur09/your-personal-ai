@@ -100,16 +100,28 @@ const Index = () => {
     if (cmd) {
       try {
         let response: string;
+        let voiceMsg: string;
         if (cmd.type === "weather") {
           const data = await fetchWeather(cmd.query || "London");
           response = formatWeatherResponse(data);
-        } else {
+          voiceMsg = `Here's the weather for ${cmd.query || "your area"}.`;
+        } else if (cmd.type === "news") {
           const data = await fetchNews(cmd.query);
           response = formatNewsResponse(data);
+          voiceMsg = "Here are the latest headlines.";
+        } else if (cmd.type === "task_add") {
+          response = await executeAddTask(user!.id, cmd.title, cmd.time, cmd.priority);
+          voiceMsg = `Task added: ${cmd.title}`;
+        } else if (cmd.type === "task_complete") {
+          response = await executeCompleteTask(cmd.query);
+          voiceMsg = "Task marked as complete.";
+        } else {
+          response = await executeListTasks();
+          voiceMsg = "Here are your tasks.";
         }
         setMessages(prev => [...prev, { role: "assistant", content: response }]);
         await saveMessage(convId, "assistant", response);
-        speak(cmd.type === "weather" ? `Here's the weather for ${cmd.query || "your area"}.` : "Here are the latest headlines.");
+        speak(voiceMsg);
         setIsProcessing(false);
         await refreshConversations();
         return;
