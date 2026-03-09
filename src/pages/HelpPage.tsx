@@ -97,6 +97,12 @@ export default function HelpPage() {
             </p>
           </div>
 
+          <div className="rounded-xl bg-card/80 backdrop-blur-sm jarvis-border p-5 text-center">
+            <p className="font-mono text-xs text-muted-foreground tracking-wide">
+              Created by <span className="text-primary font-bold">Arun Thakur</span>
+            </p>
+          </div>
+
           {sections.map((section, i) => (
             <motion.div
               key={section.title}
