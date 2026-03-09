@@ -281,6 +281,14 @@ const Index = () => {
 
     // Stream response from OpenRouter (free models)
     let assistantSoFar = "";
+    // Build memory context for AI
+    let memoryContext = "";
+    try { memoryContext = await buildMemoryContext(); } catch {}
+    // Include matched skill context
+    let skillContext = "";
+    if (matchedSkill) {
+      skillContext = `\n\n[Active Skill: ${matchedSkill.name}]\n${matchedSkill.description}\nAction type: ${matchedSkill.action_type}`;
+    }
     try {
       await streamChat({
         messages: [...messages, { role: "user", content: trimmed }],
@@ -303,6 +311,7 @@ const Index = () => {
           await refreshConversations();
         },
         isAdmin: adminVerified,
+        memoryContext: memoryContext + skillContext,
       });
     } catch (e) {
       console.error("Stream error:", e);
