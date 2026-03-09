@@ -218,13 +218,38 @@ const Index = () => {
       } catch (e) { console.error("Command failed:", e); }
     }
 
-    // Local response engine — no AI credits needed
-    const response = generateLocalResponse(trimmed, adminVerified, user?.user_metadata?.full_name);
-    setMessages(prev => [...prev, { role: "assistant", content: response }]);
-    await saveMessage(convId, "assistant", response);
-    if (response.length < 500) speak(response.replace(/[#*`_\[\]|]/g, "").replace(/\n/g, " ").slice(0, 300));
-    setIsProcessing(false);
-    await refreshConversations();
+    // Stream response from OpenRouter (free models)
+    let assistantSoFar = "";
+    try {
+      await streamChat({
+        messages: [...messages, { role: "user", content: trimmed }],
+        onDelta: (chunk) => {
+          assistantSoFar += chunk;
+          setMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last?.role === "assistant") {
+              return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
+            }
+            return [...prev, { role: "assistant", content: assistantSoFar }];
+          });
+        },
+        onDone: async () => {
+          if (assistantSoFar) {
+            await saveMessage(convId, "assistant", assistantSoFar);
+            if (assistantSoFar.length < 500) speak(assistantSoFar.replace(/[#*`_\[\]|]/g, "").replace(/\n/g, " ").slice(0, 300));
+          }
+          setIsProcessing(false);
+          await refreshConversations();
+        },
+        isAdmin: adminVerified,
+      });
+    } catch (e) {
+      console.error("Stream error:", e);
+      const errorMsg = e instanceof Error ? e.message : "Something went wrong";
+      setMessages(prev => [...prev, { role: "assistant", content: `I apologize, sir. ${errorMsg}` }]);
+      toast.error("AI response failed");
+      setIsProcessing(false);
+    }
   }, [messages, isProcessing, activeConvId]);
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); sendMessage(input); };
