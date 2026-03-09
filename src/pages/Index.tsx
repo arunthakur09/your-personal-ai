@@ -218,32 +218,13 @@ const Index = () => {
       } catch (e) { console.error("Command failed:", e); }
     }
 
-    let assistantText = "";
-    const upsert = (chunk: string) => {
-      assistantText += chunk;
-      setMessages(prev => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantText } : m);
-        return [...prev, { role: "assistant", content: assistantText }];
-      });
-    };
-
-    try {
-      await streamChat({
-        messages: [...messages, userMsg],
-        onDelta: upsert,
-        isAdmin: adminVerified,
-        onDone: async () => {
-          setIsProcessing(false);
-          await saveMessage(convId!, "assistant", assistantText);
-          await refreshConversations();
-          if (assistantText.length < 500) speak(assistantText.replace(/[#*`_\[\]|]/g, "").replace(/\n/g, " ").slice(0, 300));
-        },
-      });
-    } catch (e: any) {
-      setIsProcessing(false);
-      toast.error(e.message || "Failed to get response");
-    }
+    // Local response engine — no AI credits needed
+    const response = generateLocalResponse(trimmed, adminVerified, user?.user_metadata?.full_name);
+    setMessages(prev => [...prev, { role: "assistant", content: response }]);
+    await saveMessage(convId, "assistant", response);
+    if (response.length < 500) speak(response.replace(/[#*`_\[\]|]/g, "").replace(/\n/g, " ").slice(0, 300));
+    setIsProcessing(false);
+    await refreshConversations();
   }, [messages, isProcessing, activeConvId]);
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); sendMessage(input); };
