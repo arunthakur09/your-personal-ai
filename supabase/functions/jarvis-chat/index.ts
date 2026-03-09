@@ -31,7 +31,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, isAdmin } = await req.json();
+    const { messages, isAdmin, memoryContext } = await req.json();
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
 
@@ -48,6 +48,10 @@ serve(async (req) => {
 - "show settings"
 - "reset to default"
 Be helpful and proactive about suggesting what he can customize.`;
+    }
+
+    if (memoryContext) {
+      systemPrompt += memoryContext;
     }
 
     // Using free models on OpenRouter

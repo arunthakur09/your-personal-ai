@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, PanelLeftOpen, PanelLeftClose, CalendarDays, LogOut, HelpCircle } from "lucide-react";
+import { Send, PanelLeftOpen, PanelLeftClose, CalendarDays, LogOut, HelpCircle, Brain } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { JarvisHeader } from "@/components/JarvisHeader";
 import { JarvisOrb } from "@/components/JarvisOrb";
@@ -20,6 +20,7 @@ import {
   deleteConversation,
 } from "@/lib/chat-persistence";
 import { getAppConfig, updateAppConfig, parseAdminCommand, loadAppConfig, resetAppConfig, undoLastChange, getConfigHistory } from "@/lib/app-config";
+import { detectSelfImprovementCommand, saveMemory, matchSkill, buildMemoryContext, proposeImprovement, loadSkills, loadMemories } from "@/lib/self-improvement";
 import { toast } from "sonner";
 
 const ADMIN_EMAIL = "arun8894194653@gmail.com";
@@ -186,6 +187,66 @@ const Index = () => {
       }
     }
 
+    // Self-improvement commands
+    const selfCmd = detectSelfImprovementCommand(trimmed);
+    if (selfCmd.type) {
+      try {
+        let response = "";
+        if (selfCmd.type === "learn") {
+          const content = selfCmd.data.content;
+          const [key, ...rest] = content.split(" is ");
+          if (rest.length > 0) {
+            await saveMemory({ category: "preference", key: key.trim(), value: rest.join(" is ").trim() });
+            response = `🧠 Noted! I'll remember that **${key.trim()}** is **${rest.join(" is ").trim()}**.`;
+          } else {
+            await saveMemory({ category: "fact", key: `fact_${Date.now()}`, value: content });
+            response = `🧠 Got it. I've stored that in my memory.`;
+          }
+        } else if (selfCmd.type === "add_skill") {
+          const content = selfCmd.data.content;
+          await proposeImprovement({
+            type: "skill",
+            title: `New skill: ${content}`,
+            description: `User requested adding skill: ${content}`,
+            proposed_changes: { name: content, trigger_pattern: content.toLowerCase().replace(/\s+/g, ".*"), description: `Custom skill: ${content}`, action_type: "prompt" },
+          });
+          response = `🔧 I've proposed a new skill: **${content}**. It needs sandbox testing before activation.\n\nGo to **Settings → Improvements** to test and apply it.`;
+        } else if (selfCmd.type === "forget") {
+          response = `🗑️ To manage memories, go to **Settings → Memory** and remove specific entries.`;
+        } else if (selfCmd.type === "show_skills") {
+          const skills = await loadSkills();
+          if (skills.length === 0) {
+            response = "I don't have any custom skills yet. Say **\"add skill translate\"** to create one, or go to **Settings**.";
+          } else {
+            response = `## ⚡ My Skills\n\n${skills.map(s => `- **${s.name}** ${s.is_active ? "✅" : "❌"} — ${s.description}\n  Trigger: \`${s.trigger_pattern}\``).join("\n")}`;
+          }
+        } else if (selfCmd.type === "show_memory") {
+          const memories = await loadMemories();
+          if (memories.length === 0) {
+            response = "My memory is empty. Say **\"remember that I like dark mode\"** to teach me something.";
+          } else {
+            response = `## 🧠 My Memory\n\n${memories.map(m => `- **${m.key}**: ${m.value} _(${m.category})_`).join("\n")}`;
+          }
+        } else if (selfCmd.type === "improve") {
+          await proposeImprovement({
+            type: "prompt",
+            title: "Self-proposed prompt enhancement",
+            description: "Based on our conversations, I suggest refining my response style to be more aligned with your preferences.",
+            proposed_changes: { prompt_addition: "Adapt response length and detail level based on the complexity of the question. For simple questions, be brief. For complex topics, be thorough." },
+          });
+          response = "🧪 I've proposed a self-improvement. Go to **Settings → Improvements** to review, sandbox-test, and apply it.";
+        }
+        setMessages(prev => [...prev, { role: "assistant", content: response }]);
+        await saveMessage(convId, "assistant", response);
+        setIsProcessing(false);
+        await refreshConversations();
+        return;
+      } catch (e) { console.error("Self-improvement error:", e); }
+    }
+
+    // Check custom skills
+    const matchedSkill = await matchSkill(trimmed);
+
     const cmd = detectCommand(trimmed);
     if (cmd) {
       try {
@@ -220,6 +281,14 @@ const Index = () => {
 
     // Stream response from OpenRouter (free models)
     let assistantSoFar = "";
+    // Build memory context for AI
+    let memoryContext = "";
+    try { memoryContext = await buildMemoryContext(); } catch {}
+    // Include matched skill context
+    let skillContext = "";
+    if (matchedSkill) {
+      skillContext = `\n\n[Active Skill: ${matchedSkill.name}]\n${matchedSkill.description}\nAction type: ${matchedSkill.action_type}`;
+    }
     try {
       await streamChat({
         messages: [...messages, { role: "user", content: trimmed }],
@@ -242,6 +311,7 @@ const Index = () => {
           await refreshConversations();
         },
         isAdmin: adminVerified,
+        memoryContext: memoryContext + skillContext,
       });
     } catch (e) {
       console.error("Stream error:", e);
@@ -278,6 +348,9 @@ const Index = () => {
           <div className="flex-1"><JarvisHeader /></div>
           <button onClick={() => setPlannerOpen(!plannerOpen)} className={`p-3 transition-colors ${plannerOpen ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
             <CalendarDays className="h-5 w-5" />
+          </button>
+          <button onClick={() => navigate("/settings")} className="p-3 text-muted-foreground hover:text-foreground transition-colors" title="Self-Improvement">
+            <Brain className="h-5 w-5" />
           </button>
           <button onClick={() => navigate("/help")} className="p-3 text-muted-foreground hover:text-foreground transition-colors" title="Help">
             <HelpCircle className="h-5 w-5" />

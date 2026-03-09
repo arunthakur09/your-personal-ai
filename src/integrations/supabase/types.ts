@@ -14,6 +14,123 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_improvements: {
+        Row: {
+          applied_at: string | null
+          created_at: string
+          description: string
+          id: string
+          proposed_changes: Json
+          sandbox_result: Json | null
+          status: string
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          proposed_changes?: Json
+          sandbox_result?: Json | null
+          status?: string
+          title: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          proposed_changes?: Json
+          sandbox_result?: Json | null
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_memory: {
+        Row: {
+          category: string
+          confidence: number
+          created_at: string
+          id: string
+          key: string
+          source: string | null
+          updated_at: string
+          user_id: string
+          value: string
+        }
+        Insert: {
+          category?: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          key: string
+          source?: string | null
+          updated_at?: string
+          user_id: string
+          value: string
+        }
+        Update: {
+          category?: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          key?: string
+          source?: string | null
+          updated_at?: string
+          user_id?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      ai_skills: {
+        Row: {
+          action_data: Json
+          action_type: string
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean
+          name: string
+          trigger_pattern: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_data?: Json
+          action_type?: string
+          created_at?: string
+          description: string
+          id?: string
+          is_active?: boolean
+          name: string
+          trigger_pattern: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_data?: Json
+          action_type?: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          trigger_pattern?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       app_config: {
         Row: {
           greeting: string
