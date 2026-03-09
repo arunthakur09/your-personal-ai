@@ -208,6 +208,7 @@ const Index = () => {
       await streamChat({
         messages: [...messages, userMsg],
         onDelta: upsert,
+        isAdmin: adminVerified,
         onDone: async () => {
           setIsProcessing(false);
           await saveMessage(convId!, "assistant", assistantText);
