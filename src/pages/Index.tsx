@@ -263,14 +263,14 @@ const Index = () => {
               <JarvisOrb isListening={voice.isListening} isProcessing={isProcessing} onToggle={handleVoiceToggle} voiceSupported={voice.isSupported} />
               <div className="text-center mt-8 space-y-2">
                 <h2 className="font-display text-2xl font-bold text-primary jarvis-glow-text">
-                  Good day, {user?.user_metadata?.full_name?.split(" ")[0] || "sir"}.
+                  {appConfig.greeting.replace("{name}", user?.user_metadata?.full_name?.split(" ")[0] || "sir")}
                 </h2>
                 <p className="font-body text-base text-muted-foreground max-w-md">
-                  I'm at your service. Type a message or tap the microphone to speak.
+                  {appConfig.subtitle}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3 max-w-md w-full mt-4">
-                {["What's the weather in Chandigarh?", "News about AI", "Help me plan my day", "Explain quantum computing"].map((q) => (
+                {appConfig.quickButtons.map((q) => (
                   <button key={q} onClick={() => sendMessage(q)}
                     className="rounded-lg bg-secondary jarvis-border px-4 py-3 text-left text-sm font-body text-secondary-foreground hover:bg-primary/10 transition-colors">
                     {q}
