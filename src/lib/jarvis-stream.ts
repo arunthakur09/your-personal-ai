@@ -6,10 +6,12 @@ export async function streamChat({
   messages,
   onDelta,
   onDone,
+  isAdmin,
 }: {
   messages: ChatMessage[];
   onDelta: (text: string) => void;
   onDone: () => void;
+  isAdmin?: boolean;
 }) {
   const resp = await fetch(CHAT_URL, {
     method: "POST",
@@ -17,7 +19,7 @@ export async function streamChat({
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, isAdmin }),
   });
 
   if (!resp.ok || !resp.body) {
