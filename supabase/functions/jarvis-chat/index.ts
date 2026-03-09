@@ -60,7 +60,7 @@ Be helpful and proactive about suggesting what he can customize.`;
         "X-Title": "Jarvis AI Assistant",
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-r1:free",
+        model: "mistralai/mistral-7b-instruct:free",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,
