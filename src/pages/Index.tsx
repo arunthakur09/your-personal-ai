@@ -45,6 +45,8 @@ const Index = () => {
   useEffect(() => {
     const handler = () => setAppConfig(getAppConfig());
     window.addEventListener("config-updated", handler);
+    // Load config from DB on mount
+    loadAppConfig();
     return () => window.removeEventListener("config-updated", handler);
   }, []);
 
