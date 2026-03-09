@@ -38,8 +38,15 @@ const Index = () => {
   const [awaitingPasscode, setAwaitingPasscode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const voice = useVoice();
+  const [appConfig, setAppConfig] = useState(getAppConfig());
 
   const isAdminUser = user?.email === ADMIN_EMAIL;
+
+  useEffect(() => {
+    const handler = () => setAppConfig(getAppConfig());
+    window.addEventListener("config-updated", handler);
+    return () => window.removeEventListener("config-updated", handler);
+  }, []);
 
   useEffect(() => {
     if (user) loadConversations().then(setConversations).catch(console.error);
