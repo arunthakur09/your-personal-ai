@@ -152,11 +152,32 @@ const Index = () => {
     if (adminVerified) {
       const adminResult = parseAdminCommand(trimmed);
       if (adminResult) {
-        if (Object.keys(adminResult.config).length > 0) {
-          updateAppConfig(adminResult.config);
+        let response = adminResult.response;
+
+        // Handle special commands
+        if (response === "__UNDO__") {
+          const result = await undoLastChange();
+          response = result
+            ? "✅ Last change undone. Configuration reverted to previous version."
+            : "⚠️ No previous version to undo.";
+        } else if (response === "__RESET__") {
+          await resetAppConfig();
+          response = "✅ All settings reset to defaults. Version saved.";
+        } else if (response === "__HISTORY__") {
+          const history = await getConfigHistory();
+          if (history.length === 0) {
+            response = "📋 No version history yet. Make some changes first!";
+          } else {
+            response = `## 📋 Version History\n\n| Version | Change | Date |\n|---------|--------|------|\n` +
+              history.map(h => `| v${h.version} | ${h.change_description || "—"} | ${new Date(h.created_at).toLocaleString()} |`).join("\n") +
+              `\n\n_${history.length} versions recorded._`;
+          }
+        } else if (Object.keys(adminResult.config).length > 0) {
+          await updateAppConfig(adminResult.config, undefined, adminResult.description);
         }
-        setMessages(prev => [...prev, { role: "assistant", content: adminResult.response }]);
-        await saveMessage(convId, "assistant", adminResult.response);
+
+        setMessages(prev => [...prev, { role: "assistant", content: response }]);
+        await saveMessage(convId, "assistant", response);
         speak("Done, sir. Changes applied.");
         setIsProcessing(false);
         await refreshConversations();
