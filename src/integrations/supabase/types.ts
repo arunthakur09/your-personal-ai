@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_config: {
+        Row: {
+          greeting: string
+          header_subtitle: string
+          header_title: string
+          id: string
+          quick_buttons: Json
+          subtitle: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          greeting?: string
+          header_subtitle?: string
+          header_title?: string
+          id?: string
+          quick_buttons?: Json
+          subtitle?: string
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          greeting?: string
+          header_subtitle?: string
+          header_title?: string
+          id?: string
+          quick_buttons?: Json
+          subtitle?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      app_config_history: {
+        Row: {
+          change_description: string | null
+          config_id: string
+          created_at: string
+          greeting: string
+          header_subtitle: string
+          header_title: string
+          id: string
+          quick_buttons: Json
+          subtitle: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          change_description?: string | null
+          config_id: string
+          created_at?: string
+          greeting: string
+          header_subtitle: string
+          header_title: string
+          id?: string
+          quick_buttons: Json
+          subtitle: string
+          user_id: string
+          version: number
+        }
+        Update: {
+          change_description?: string | null
+          config_id?: string
+          created_at?: string
+          greeting?: string
+          header_subtitle?: string
+          header_title?: string
+          id?: string
+          quick_buttons?: Json
+          subtitle?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_config_history_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "app_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string
