@@ -20,6 +20,9 @@ import {
 } from "@/lib/chat-persistence";
 import { toast } from "sonner";
 
+const ADMIN_EMAIL = "arun8894194653@gmail.com";
+const ADMIN_PASSCODE = "8894194653";
+
 const Index = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -30,8 +33,12 @@ const Index = () => {
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [adminVerified, setAdminVerified] = useState(false);
+  const [awaitingPasscode, setAwaitingPasscode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const voice = useVoice();
+
+  const isAdminUser = user?.email === ADMIN_EMAIL;
 
   useEffect(() => {
     if (user) loadConversations().then(setConversations).catch(console.error);
@@ -97,6 +104,39 @@ const Index = () => {
     setInput("");
     setIsProcessing(true);
     await saveMessage(convId, "user", trimmed);
+
+    // Admin passcode flow
+    if (awaitingPasscode) {
+      if (trimmed === ADMIN_PASSCODE) {
+        setAdminVerified(true);
+        setAwaitingPasscode(false);
+        const response = "🔓 Identity confirmed. Welcome back, Mr. Thakur. Admin privileges activated. You may now instruct me to make changes.";
+        setMessages(prev => [...prev, { role: "assistant", content: response }]);
+        await saveMessage(convId, "assistant", response);
+        speak("Identity confirmed. Welcome back, Mr. Thakur.");
+      } else {
+        setAwaitingPasscode(false);
+        const response = "❌ Incorrect passcode. Admin access denied. You may continue using standard features.";
+        setMessages(prev => [...prev, { role: "assistant", content: response }]);
+        await saveMessage(convId, "assistant", response);
+        speak("Incorrect passcode. Access denied.");
+      }
+      setIsProcessing(false);
+      await refreshConversations();
+      return;
+    }
+
+    // Detect admin activation request
+    if (isAdminUser && !adminVerified && /admin|make changes|creator mode|unlock/i.test(trimmed)) {
+      setAwaitingPasscode(true);
+      const response = "🔐 Admin access requested. Please provide your passcode to verify your identity.";
+      setMessages(prev => [...prev, { role: "assistant", content: response }]);
+      await saveMessage(convId, "assistant", response);
+      speak("Please provide your passcode to verify your identity.");
+      setIsProcessing(false);
+      await refreshConversations();
+      return;
+    }
 
     const cmd = detectCommand(trimmed);
     if (cmd) {

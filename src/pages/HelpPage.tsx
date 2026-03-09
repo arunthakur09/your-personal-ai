@@ -65,6 +65,7 @@ export default function HelpPage() {
         "Jarvis maintains the persona of Tony Stark's AI — expect witty responses!",
         "For best results, be specific in your questions and commands.",
         "Sign out via the logout icon in the top-right corner.",
+        "Ask 'Who created you?' and Jarvis will tell you about its creator.",
       ],
     },
   ];
@@ -93,6 +94,12 @@ export default function HelpPage() {
             <p className="font-body text-sm text-muted-foreground max-w-lg mx-auto">
               Just A Rather Very Intelligent System — your personal AI assistant. 
               Here's everything you need to know to get started.
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-card/80 backdrop-blur-sm jarvis-border p-5 text-center">
+            <p className="font-mono text-xs text-muted-foreground tracking-wide">
+              Created by <span className="text-primary font-bold">Arun Thakur</span>
             </p>
           </div>
 
