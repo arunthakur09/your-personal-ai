@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import ResetPassword from "./pages/ResetPassword";
 import HelpPage from "./pages/HelpPage";
+import JarvisSettings from "./pages/JarvisSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
