@@ -349,6 +349,9 @@ const Index = () => {
           <button onClick={() => setPlannerOpen(!plannerOpen)} className={`p-3 transition-colors ${plannerOpen ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
             <CalendarDays className="h-5 w-5" />
           </button>
+          <button onClick={() => navigate("/settings")} className="p-3 text-muted-foreground hover:text-foreground transition-colors" title="Self-Improvement">
+            <Brain className="h-5 w-5" />
+          </button>
           <button onClick={() => navigate("/help")} className="p-3 text-muted-foreground hover:text-foreground transition-colors" title="Help">
             <HelpCircle className="h-5 w-5" />
           </button>
