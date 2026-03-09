@@ -9,7 +9,8 @@ import { ConversationSidebar } from "@/components/ConversationSidebar";
 import { DailyPlanner } from "@/components/DailyPlanner";
 import { useVoice, speak } from "@/hooks/use-voice";
 import { useAuth } from "@/hooks/use-auth";
-import { streamChat, type ChatMessage as ChatMsg } from "@/lib/jarvis-stream";
+import { type ChatMessage as ChatMsg } from "@/lib/jarvis-stream";
+import { generateLocalResponse } from "@/lib/jarvis-local";
 import { detectCommand, fetchWeather, fetchNews, executeAddTask, executeCompleteTask, executeListTasks } from "@/lib/jarvis-commands";
 import {
   createConversation,
