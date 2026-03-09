@@ -18,7 +18,7 @@ import {
   saveMessage,
   deleteConversation,
 } from "@/lib/chat-persistence";
-import { getAppConfig, updateAppConfig, parseAdminCommand } from "@/lib/app-config";
+import { getAppConfig, updateAppConfig, parseAdminCommand, loadAppConfig, resetAppConfig, undoLastChange, getConfigHistory } from "@/lib/app-config";
 import { toast } from "sonner";
 
 const ADMIN_EMAIL = "arun8894194653@gmail.com";
