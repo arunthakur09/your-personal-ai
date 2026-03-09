@@ -146,6 +146,22 @@ const Index = () => {
       return;
     }
 
+    // Admin config commands
+    if (adminVerified) {
+      const adminResult = parseAdminCommand(trimmed);
+      if (adminResult) {
+        if (Object.keys(adminResult.config).length > 0) {
+          updateAppConfig(adminResult.config);
+        }
+        setMessages(prev => [...prev, { role: "assistant", content: adminResult.response }]);
+        await saveMessage(convId, "assistant", adminResult.response);
+        speak("Done, sir. Changes applied.");
+        setIsProcessing(false);
+        await refreshConversations();
+        return;
+      }
+    }
+
     const cmd = detectCommand(trimmed);
     if (cmd) {
       try {
