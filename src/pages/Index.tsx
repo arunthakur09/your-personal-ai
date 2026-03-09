@@ -20,6 +20,9 @@ import {
 } from "@/lib/chat-persistence";
 import { toast } from "sonner";
 
+const ADMIN_EMAIL = "arun8894194653@gmail.com";
+const ADMIN_PASSCODE = "8894194653";
+
 const Index = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -30,8 +33,12 @@ const Index = () => {
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [adminVerified, setAdminVerified] = useState(false);
+  const [awaitingPasscode, setAwaitingPasscode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const voice = useVoice();
+
+  const isAdminUser = user?.email === ADMIN_EMAIL;
 
   useEffect(() => {
     if (user) loadConversations().then(setConversations).catch(console.error);
