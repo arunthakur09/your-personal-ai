@@ -65,6 +65,7 @@ export default function HelpPage() {
         "Jarvis maintains the persona of Tony Stark's AI — expect witty responses!",
         "For best results, be specific in your questions and commands.",
         "Sign out via the logout icon in the top-right corner.",
+        "Ask 'Who created you?' and Jarvis will tell you about its creator.",
       ],
     },
   ];
