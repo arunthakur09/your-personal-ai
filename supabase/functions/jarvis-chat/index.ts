@@ -50,6 +50,10 @@ serve(async (req) => {
 Be helpful and proactive about suggesting what he can customize.`;
     }
 
+    if (memoryContext) {
+      systemPrompt += memoryContext;
+    }
+
     // Using free models on OpenRouter
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
