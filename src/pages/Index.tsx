@@ -18,6 +18,7 @@ import {
   saveMessage,
   deleteConversation,
 } from "@/lib/chat-persistence";
+import { getAppConfig, updateAppConfig, parseAdminCommand } from "@/lib/app-config";
 import { toast } from "sonner";
 
 const ADMIN_EMAIL = "arun8894194653@gmail.com";
@@ -37,8 +38,15 @@ const Index = () => {
   const [awaitingPasscode, setAwaitingPasscode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const voice = useVoice();
+  const [appConfig, setAppConfig] = useState(getAppConfig());
 
   const isAdminUser = user?.email === ADMIN_EMAIL;
+
+  useEffect(() => {
+    const handler = () => setAppConfig(getAppConfig());
+    window.addEventListener("config-updated", handler);
+    return () => window.removeEventListener("config-updated", handler);
+  }, []);
 
   useEffect(() => {
     if (user) loadConversations().then(setConversations).catch(console.error);
@@ -138,6 +146,22 @@ const Index = () => {
       return;
     }
 
+    // Admin config commands
+    if (adminVerified) {
+      const adminResult = parseAdminCommand(trimmed);
+      if (adminResult) {
+        if (Object.keys(adminResult.config).length > 0) {
+          updateAppConfig(adminResult.config);
+        }
+        setMessages(prev => [...prev, { role: "assistant", content: adminResult.response }]);
+        await saveMessage(convId, "assistant", adminResult.response);
+        speak("Done, sir. Changes applied.");
+        setIsProcessing(false);
+        await refreshConversations();
+        return;
+      }
+    }
+
     const cmd = detectCommand(trimmed);
     if (cmd) {
       try {
@@ -184,6 +208,7 @@ const Index = () => {
       await streamChat({
         messages: [...messages, userMsg],
         onDelta: upsert,
+        isAdmin: adminVerified,
         onDone: async () => {
           setIsProcessing(false);
           await saveMessage(convId!, "assistant", assistantText);
@@ -239,14 +264,14 @@ const Index = () => {
               <JarvisOrb isListening={voice.isListening} isProcessing={isProcessing} onToggle={handleVoiceToggle} voiceSupported={voice.isSupported} />
               <div className="text-center mt-8 space-y-2">
                 <h2 className="font-display text-2xl font-bold text-primary jarvis-glow-text">
-                  Good day, {user?.user_metadata?.full_name?.split(" ")[0] || "sir"}.
+                  {appConfig.greeting.replace("{name}", user?.user_metadata?.full_name?.split(" ")[0] || "sir")}
                 </h2>
                 <p className="font-body text-base text-muted-foreground max-w-md">
-                  I'm at your service. Type a message or tap the microphone to speak.
+                  {appConfig.subtitle}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3 max-w-md w-full mt-4">
-                {["What's the weather in Chandigarh?", "News about AI", "Help me plan my day", "Explain quantum computing"].map((q) => (
+                {appConfig.quickButtons.map((q) => (
                   <button key={q} onClick={() => sendMessage(q)}
                     className="rounded-lg bg-secondary jarvis-border px-4 py-3 text-left text-sm font-body text-secondary-foreground hover:bg-primary/10 transition-colors">
                     {q}

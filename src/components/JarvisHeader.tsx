@@ -1,7 +1,17 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Shield } from "lucide-react";
+import { getAppConfig } from "@/lib/app-config";
 
 export function JarvisHeader() {
+  const [config, setConfig] = useState(getAppConfig());
+
+  useEffect(() => {
+    const handler = () => setConfig(getAppConfig());
+    window.addEventListener("config-updated", handler);
+    return () => window.removeEventListener("config-updated", handler);
+  }, []);
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -20 }}
@@ -15,10 +25,10 @@ export function JarvisHeader() {
         </div>
         <div>
           <h1 className="font-display text-lg font-bold tracking-wider text-primary jarvis-glow-text">
-            J.A.R.V.I.S.
+            {config.headerTitle}
           </h1>
           <p className="font-mono text-[10px] text-muted-foreground tracking-widest uppercase">
-            Just A Rather Very Intelligent System
+            {config.headerSubtitle}
           </p>
         </div>
       </div>

@@ -31,9 +31,24 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages } = await req.json();
+    const { messages, isAdmin } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    let systemPrompt = SYSTEM_PROMPT;
+    if (isAdmin) {
+      systemPrompt += `\n\nIMPORTANT: The current user is Arun Thakur, your creator. Address him as "Mr. Thakur" or "sir". He has admin privileges. He can instruct you to make changes to the app configuration. When he asks to change settings, guide him with commands like:
+- "change greeting to ..."
+- "change subtitle to ..."
+- "change title to ..."
+- "change header subtitle to ..."
+- "add button ..."
+- "remove button ..."
+- "set buttons to ..., ..., ..."
+- "show settings"
+- "reset to default"
+Be helpful and proactive about suggesting what he can customize.`;
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -44,7 +59,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           ...messages,
         ],
         stream: true,
