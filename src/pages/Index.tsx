@@ -20,6 +20,7 @@ import {
   deleteConversation,
 } from "@/lib/chat-persistence";
 import { getAppConfig, updateAppConfig, parseAdminCommand, loadAppConfig, resetAppConfig, undoLastChange, getConfigHistory } from "@/lib/app-config";
+import { detectSelfImprovementCommand, saveMemory, matchSkill, buildMemoryContext, proposeImprovement, loadSkills, loadMemories } from "@/lib/self-improvement";
 import { toast } from "sonner";
 
 const ADMIN_EMAIL = "arun8894194653@gmail.com";
