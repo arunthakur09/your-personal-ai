@@ -201,11 +201,10 @@ export function generateLocalResponse(input: string, isAdmin: boolean, userName?
       const match = trimmed.match(pattern);
       if (match) {
         const responses = rule.responses;
-        const chosen = pick(responses);
-        if (typeof chosen === "function") {
-          return (chosen as (m: RegExpMatchArray, i: string) => string)(match, trimmed);
+        if (typeof responses[0] === "function") {
+          return (responses[0] as (m: RegExpMatchArray, i: string) => string)(match, trimmed);
         }
-        return chosen as string;
+        return pick(responses as string[]);
       }
     }
   }
