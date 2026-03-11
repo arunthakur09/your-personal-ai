@@ -99,8 +99,38 @@ serve(async (req) => {
       }
     }
 
-    // All models failed
-    return new Response(JSON.stringify({ error: "All free AI models are currently unavailable. Please try again later." }), {
+    // All OpenRouter models failed — try Lovable AI Gateway as fallback
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (lovableKey) {
+      console.log("Falling back to Lovable AI Gateway");
+      try {
+        const lovableResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${lovableKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: allMessages,
+            stream: true,
+          }),
+        });
+        if (lovableResp.ok) {
+          console.log("Success with Lovable AI Gateway fallback");
+          return new Response(lovableResp.body, {
+            headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+          });
+        }
+        const body = await lovableResp.text();
+        console.warn(`Lovable AI Gateway failed (${lovableResp.status}): ${body}`);
+      } catch (e) {
+        console.warn("Lovable AI Gateway fetch error:", e);
+      }
+    }
+
+    // All providers failed
+    return new Response(JSON.stringify({ error: "All AI models are currently unavailable. Please try again later." }), {
       status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
