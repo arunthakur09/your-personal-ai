@@ -27,17 +27,26 @@ You can help with:
 
 Always maintain the Jarvis persona — intelligent, reliable, and subtly charming.`;
 
-// Free models on OpenRouter — tried in order
+// Extended list of free models on OpenRouter
 const FREE_MODELS = [
   "openrouter/free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "google/gemma-3n-e4b-it:free",
   "arcee-ai/trinity-mini:free",
+  "arcee-ai/trinity-large-preview:free",
   "nvidia/nemotron-nano-9b-v2:free",
+  "deepseek/deepseek-r1-0528:free",
+  "deepseek/deepseek-chat-v3-0324:free",
+  "microsoft/phi-4-reasoning:free",
+  "microsoft/mai-ds-r1:free",
+  "qwen/qwen3-30b-a3b:free",
+  "google/gemma-3-27b-it:free",
+  "mistralai/devstral-small:free",
+  "moonshotai/kimi-k2:free",
 ];
 
 async function tryModel(apiKey: string, model: string, messages: any[], stream: boolean) {
-  const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  return await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -47,7 +56,6 @@ async function tryModel(apiKey: string, model: string, messages: any[], stream: 
     },
     body: JSON.stringify({ model, messages, stream }),
   });
-  return resp;
 }
 
 serve(async (req) => {
@@ -69,7 +77,7 @@ serve(async (req) => {
 
     const allMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-    // Try each free model in order until one works
+    // Try each free model in order
     for (const model of FREE_MODELS) {
       console.log(`Trying model: ${model}`);
       try {
@@ -86,10 +94,10 @@ serve(async (req) => {
         const body = await response.text();
         console.warn(`Model ${model} failed (${status}): ${body}`);
 
-        // If rate limited or payment required or model unavailable, try next
+        // Retryable errors — try next model
         if ([402, 429, 503, 500].includes(status)) continue;
 
-        // For other errors (e.g. 401 bad key), don't retry
+        // Non-retryable (e.g. 401 bad key)
         return new Response(JSON.stringify({ error: `API error: ${status}` }), {
           status, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -99,7 +107,7 @@ serve(async (req) => {
       }
     }
 
-    // All OpenRouter models failed — try Lovable AI Gateway as fallback
+    // All OpenRouter models failed — try Lovable AI Gateway
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (lovableKey) {
       console.log("Falling back to Lovable AI Gateway");
@@ -124,13 +132,23 @@ serve(async (req) => {
         }
         const body = await lovableResp.text();
         console.warn(`Lovable AI Gateway failed (${lovableResp.status}): ${body}`);
+        
+        if (lovableResp.status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted. The daily free limit on OpenRouter has been reached and backup credits are depleted. Please try again later or add credits." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (lovableResp.status === 429) {
+          return new Response(JSON.stringify({ error: "AI rate limit reached. Please wait a moment and try again." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       } catch (e) {
         console.warn("Lovable AI Gateway fetch error:", e);
       }
     }
 
-    // All providers failed
-    return new Response(JSON.stringify({ error: "All AI models are currently unavailable. Please try again later." }), {
+    return new Response(JSON.stringify({ error: "All AI models are temporarily unavailable. OpenRouter's free daily limit (50 requests) has been reached — it resets every 24 hours. Please try again later." }), {
       status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
