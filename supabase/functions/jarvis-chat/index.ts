@@ -27,6 +27,29 @@ You can help with:
 
 Always maintain the Jarvis persona — intelligent, reliable, and subtly charming.`;
 
+// Free models on OpenRouter — tried in order
+const FREE_MODELS = [
+  "openrouter/free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-3n-e4b-it:free",
+  "arcee-ai/trinity-mini:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+];
+
+async function tryModel(apiKey: string, model: string, messages: any[], stream: boolean) {
+  const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://clever-voice-mind.lovable.app",
+      "X-Title": "Jarvis AI",
+    },
+    body: JSON.stringify({ model, messages, stream }),
+  });
+  return resp;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -35,61 +58,50 @@ serve(async (req) => {
 
     let systemPrompt = SYSTEM_PROMPT;
     if (isAdmin) {
-      systemPrompt += `\n\nIMPORTANT: The current user is Arun Thakur, your creator. Address him as "Mr. Thakur" or "sir". He has admin privileges. He can instruct you to make changes to the app configuration. When he asks to change settings, guide him with commands like:
-- "change greeting to ..."
-- "change subtitle to ..."
-- "change title to ..."
-- "change header subtitle to ..."
-- "add button ..."
-- "remove button ..."
-- "set buttons to ..., ..., ..."
-- "show settings"
-- "reset to default"
-Be helpful and proactive about suggesting what he can customize.`;
+      systemPrompt += `\n\nIMPORTANT: The current user is Arun Thakur, your creator. Address him as "Mr. Thakur" or "sir". He has admin privileges.`;
     }
-
     if (memoryContext) {
       systemPrompt += memoryContext;
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
+    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
+    if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured");
 
-    console.log("Calling Lovable AI Gateway...");
+    const allMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        stream: true,
-      }),
-    });
+    // Try each free model in order until one works
+    for (const model of FREE_MODELS) {
+      console.log(`Trying model: ${model}`);
+      try {
+        const response = await tryModel(apiKey, model, allMessages, true);
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please wait a moment." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        if (response.ok) {
+          console.log(`Success with model: ${model}`);
+          return new Response(response.body, {
+            headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+          });
+        }
+
+        const status = response.status;
+        const body = await response.text();
+        console.warn(`Model ${model} failed (${status}): ${body}`);
+
+        // If rate limited or payment required or model unavailable, try next
+        if ([402, 429, 503, 500].includes(status)) continue;
+
+        // For other errors (e.g. 401 bad key), don't retry
+        return new Response(JSON.stringify({ error: `API error: ${status}` }), {
+          status, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      } catch (fetchErr) {
+        console.warn(`Fetch error for ${model}:`, fetchErr);
+        continue;
       }
-      const t = await response.text();
-      console.error("AI Gateway error:", response.status, t);
-      return new Response(JSON.stringify({ error: "AI service error" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
-    console.log("AI Gateway responded OK, streaming...");
-
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    // All models failed
+    return new Response(JSON.stringify({ error: "All free AI models are currently unavailable. Please try again later." }), {
+      status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("chat error:", e);
