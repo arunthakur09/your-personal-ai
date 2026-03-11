@@ -79,7 +79,7 @@ Be helpful and proactive about suggesting what he can customize.`;
         });
       }
       const t = await response.text();
-      console.error("OpenRouter error:", response.status, t);
+      console.error("AI Gateway error:", response.status, t);
       return new Response(JSON.stringify({ error: "AI service error" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
