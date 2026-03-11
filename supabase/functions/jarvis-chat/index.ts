@@ -29,11 +29,11 @@ Always maintain the Jarvis persona — intelligent, reliable, and subtly charmin
 
 // Free models on OpenRouter — tried in order
 const FREE_MODELS = [
-  "meta-llama/llama-3.1-8b-instruct:free",
-  "mistralai/mistral-7b-instruct:free",
-  "google/gemma-2-9b-it:free",
-  "qwen/qwen-2.5-7b-instruct:free",
-  "huggingfaceh4/zephyr-7b-beta:free",
+  "openrouter/free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-3n-e4b-it:free",
+  "arcee-ai/trinity-mini:free",
+  "nvidia/nemotron-nano-9b-v2:free",
 ];
 
 async function tryModel(apiKey: string, model: string, messages: any[], stream: boolean) {
